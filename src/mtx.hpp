@@ -1,6 +1,7 @@
 #ifndef MTX_HPP
 #define MTX_HPP
 
+#include <functional>
 #include <initializer_list>
 #include <vector>
 #pragma once
@@ -37,6 +38,14 @@ public:
     }
   }
 
+  void fill(std::function<T()> fn) {
+    for (uintmax_t y = 0; y < H; y++) {
+      for (uintmax_t x = 0; x < W; x++) {
+        data[x][y] = fn();
+      }
+    }
+  }
+
   
   void foreach(validfn_t f) {
     for (uintmax_t y = 0; y < H; y++) {
@@ -46,7 +55,7 @@ public:
     }
   }
 
-  virtual T* operator[](const uintmax_t x) {return data[x];}
+  T* operator[](const uintmax_t x) {return data[x];}
   virtual const T* operator[](const uintmax_t x) const {return data[x];}
 
   void operator +=(const Matrix<T, W, H>& other) {
@@ -60,6 +69,20 @@ public:
     Matrix<T, W, H> m = this;
     m += other;
     return m;
+  }
+
+  void operator *=(const T val) {
+    for (uintmax_t y = 0; y < H; y++) {
+      for (uintmax_t x = 0; x < W; x++) {
+        data[x][y] *= val;
+      }
+    }
+  }
+
+  Matrix<T, W, H> operator *(const T val) {
+    Matrix<T, W, H> q = std::copy(this);
+    q *= val;
+    return q;
   }
   
   // we take our height and their width
@@ -117,12 +140,25 @@ public:
     std::vector<T> v;
     v.insert(v.begin(), std::begin(this->data[0]), std::end(this->data[0]));
     return v;
-  } 
+  }
+  T& operator [](uintmax_t idx) {
+    return this->data[0][idx];
+  }
 };
 
 // TODO: enforce that q.size == S
 template<typename T, const uintmax_t S>
 constexpr Vector<T, S> vec_from(std::initializer_list<T> q) {
+  Vector<T, S> v;
+  uintmax_t i = 0;
+  for (auto k : q) {
+    v.data[0][i] = k;
+    i++;
+  }
+  return v;
+}
+template<typename T, const uintmax_t S>
+constexpr Vector<T, S> vec_from(std::vector<T> q) {
   Vector<T, S> v;
   uintmax_t i = 0;
   for (auto k : q) {
