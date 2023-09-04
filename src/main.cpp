@@ -28,6 +28,6 @@ int main() {
   InternalLayer<int, ReLu, 4, 8> l1(inl);
 
   inl.set(vec_from<int, 8>({1, 1, 1, 1, 1, 1, 1, 1}));
-  l1.fwd().print(std::cout);
+  print_vec(l1.fwd(), std::cout);
   return 0;
 }

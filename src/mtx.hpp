@@ -2,6 +2,7 @@
 #define MTX_HPP
 
 #include <initializer_list>
+#include <vector>
 #pragma once
 
 #include <algorithm>
@@ -13,11 +14,14 @@ class Matrix {
 private:
   using validfn_t = T(T);
 
+public:
   uintmax_t width = W;
   uintmax_t height = H;
   uintmax_t size = W*H;
-public:
   T data[W][H]; // by rows
+  
+  T** get_data() {return data;};
+
   Matrix() {
     fill(0);
   }
@@ -48,7 +52,7 @@ public:
   void operator +=(const Matrix<T, W, H>& other) {
     for (uintmax_t y = 0; y < H; y++) {
       for (uintmax_t x = 0; x < W; x++) {
-        data[y][x] += other.data[y][x];
+        data[x][y] += other.data[x][y];
       }
     }
   }
@@ -72,7 +76,19 @@ public:
       }
     }
     return m;
-  }  
+  }
+
+  Matrix<T, 1, H> operator *(const std::vector<T>& other) {
+    Matrix<T, 1, H> m;
+    for (uintmax_t j = 0; j < H; j++) {
+      T sum = 0;
+      for (uintmax_t k = 0; k < W; k++) {
+        sum += other[k] * data[k][j];
+      }
+      m.data[0][j] = sum;
+    }
+    return m;
+  } 
 
   void print(std::ostream& os) { 
     for (uintmax_t y = 0; y < H; y++) {
@@ -86,7 +102,23 @@ public:
 
 
 template<typename T, const uintmax_t H>
-using Vector = Matrix<T, 1, H>;
+class Vector : public Matrix<T, 1, H> {
+public:
+  Vector() : Matrix<T, 1, H>() {};
+  Vector(Matrix<T, 1, H> m) : Matrix<T, 1, H>(m) {};
+  Vector(std::initializer_list<T> q) {
+    uintmax_t i = 0;
+    for (auto k : q) {
+      this->data[0][i] = k;
+      i++;
+    }
+  }
+  std::vector<T> flatten() {
+    std::vector<T> v;
+    v.insert(v.begin(), std::begin(this->data[0]), std::end(this->data[0]));
+    return v;
+  } 
+};
 
 // TODO: enforce that q.size == S
 template<typename T, const uintmax_t S>
@@ -98,6 +130,13 @@ constexpr Vector<T, S> vec_from(std::initializer_list<T> q) {
     i++;
   }
   return v;
+}
+
+template<typename T>
+void print_vec(std::vector<T> vec, std::ostream& os) {
+  for (T k : vec) {
+    os << k << '\n';
+  }
 }
 
 // template<typename T, const uintmax_t H>
