@@ -114,7 +114,7 @@ int main() {
   }
   
   std::cout << "beginning SGD\n";
-  net.StochGradDesc(data, 5, 1000, 2);
+  net.StochGradDesc(data, 5, 100, 0);
   std::cout << "finished SDG\n";
 
   

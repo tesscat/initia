@@ -132,6 +132,7 @@ public:
       d_cost_wrt_weight.push_back(Matrix<T>(weights[i].height, weights[i].width));
     }
     for (usize j = batch * mini_batch_size; j<(batch+1)*mini_batch_size; j++) {
+      // std::cout << "bpropping\n";
       auto delta_params = Backprop(training_data[j].first, training_data[j].second);
       for (usize i = 0; i < d_cost_wrt_bias.size(); i++) {
         d_cost_wrt_bias[i] += delta_params.second[i];
@@ -139,14 +140,16 @@ public:
       }
     }
     for (usize i = 0; i < d_cost_wrt_bias.size(); i++) {
-      weights[i] += d_cost_wrt_weight[i] * ((-1) * (learning_rate/mini_batch_size));
-      biases[i] += d_cost_wrt_bias[i] * ((-1) * (learning_rate/mini_batch_size));
+      T rate = ((-1) * (learning_rate/mini_batch_size));
+      std::cout << "rate: " << rate << '\n';
+      weights[i] += d_cost_wrt_weight[i] * rate;
+      biases[i] += d_cost_wrt_bias[i] * rate;
     }
   }
   
   // return a pair with the derivatives of cost WRT all the weights, and all the biases
   std::pair<std::vector<Matrix<T>>, std::vector<Vector<T>>> Backprop(Vector<T> inp, Vector<T> expected) {
-    std::cout << "inp shape " << inp.height << ' ' << inp.width << '\n';
+    // std::cout << "inp shape " << inp.height << ' ' << inp.width << '\n';
     // TODO: make it do all the inps/exps in a batch simultaneously
     std::vector<Vector<T>> nabla_bias;
     std::vector<Matrix<T>> nabla_weight;
@@ -163,7 +166,7 @@ public:
     std::vector<Vector<T>> weighted_inps {};
     for (usize i = 0; i < weights.size(); i++) {
       Vector<T> z = weights[i] * activation + biases[i];
-      std::cout << "z shape " << z.height << ' ' << z.width << '\n';
+      // std::cout << "z shape " << z.height << ' ' << z.width << '\n';
       weighted_inps.push_back(z);
       activation = fns::Sigmoid(z);
       activations.push_back(activation);

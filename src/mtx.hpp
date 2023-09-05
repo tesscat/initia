@@ -118,18 +118,18 @@ public:
   
   // we take our height and their width
   Matrix<T> operator *(const Matrix<T>& other) {
-    if (height != other.width) {
-      std::cout << "my h " << height << " vs " << other.width << '\n';
+    if (width != other.height) {
+      std::cout << "my w " << width << " vs " << other.height << '\n';
       throw std::domain_error("dims mismatch on matrix *");
     }
-    Matrix<T> m(other.width, height);
-    for (uintmax_t i = 0; i < other.width; i++) {
-      for (uintmax_t j = 0; j < height; j++) {
+    Matrix<T> m(height, other.width);
+    for (uintmax_t i = 0; i < height; i++) {
+      for (uintmax_t j = 0; j < other.width; j++) {
         T sum = 0;
         for (uintmax_t k = 0; k < width; k++) {
-          sum += other[k][i] * data[j][k];
+          sum += data[i][k] * other.data[k][j];
         }
-        m.data[j][i] = sum;
+        m.data[i][j] = sum;
       }
     }
     return m;
@@ -194,7 +194,7 @@ public:
   Vector<T> Hadamond(Vector<T> other) {
     Vector<T> out (other.height);
     for (uintmax_t i = 0; i < other.height; i++) {
-      out[i] = this[i][0] * other[i];
+      out[i] = this->data[i][0] * other.data[i][0];
     }
 
     return out;
