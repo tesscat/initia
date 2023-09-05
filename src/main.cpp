@@ -1,79 +1,123 @@
 #include "fns.hpp"
 #include "mtx.hpp"
-#include "layer.hpp"
 #include "net.hpp"
+#include <charconv>
 #include <iostream>
 #include <random>
 
+#include <iterator>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <utility>
+#include <vector>
+#include <string>
+
+// https://stackoverflow.com/questions/1120140/how-can-i-read-and-parse-csv-files-in-c
+class CSVRow {
+public:
+  std::string_view operator[](std::size_t index) const {
+    return std::string_view(&m_line[m_data[index] + 1], m_data[index + 1] -  (m_data[index] + 1));
+  }
+  std::size_t size() const {
+    return m_data.size() - 1;
+  }
+  void readNextRow(std::istream& str) {
+    std::getline(str, m_line);
+
+    m_data.clear();
+    m_data.emplace_back(-1);
+    std::string::size_type pos = 0;
+    while((pos = m_line.find(',', pos)) != std::string::npos) {
+        m_data.emplace_back(pos);
+        ++pos;
+    }
+    // This checks for a trailing comma with no data after it.
+    pos   = m_line.size();
+    m_data.emplace_back(pos);
+  }
+private:
+  std::string         m_line;
+  std::vector<int>    m_data;
+};
+
+std::istream& operator>>(std::istream& str, CSVRow& data) {
+  data.readNextRow(str);
+  return str;
+}
+
+Vector<double> OneHotEncode(uintmax_t Y) {
+  Vector<double> vec(10);
+  vec.fill(0);
+
+  vec[Y] = 1.0;
+  return vec;
+}
+
+uintmax_t SVTo(std::string sv) {
+  uintmax_t i;
+  auto result = std::from_chars(sv.data(), sv.data() + sv.size(), i);
+  if (result.ec == std::errc::invalid_argument) {
+    std::cout << "Could not convert.";
+  }
+
+  return i;
+}
+
+std::vector<std::string> getNextLineAndSplitIntoTokens(std::istream& str) {
+  std::vector<std::string>   result;
+  std::string                line;
+  std::getline(str,line);
+
+  std::stringstream          lineStream(line);
+  std::string                cell;
+
+  while(std::getline(lineStream,cell, ','))
+  {
+    result.push_back(cell);
+  }
+  // This checks for a trailing comma with no data after it.
+  if (!lineStream && cell.empty())
+  {
+    // If there was a trailing comma then add an empty element.
+    result.push_back("");
+  }
+  return result;
+}
 
 int main() {
 
-  std::mt19937_64 gen;
-  // chosen by dice roll, guaranteed to be random
-  gen.seed(5);
+  Network<double> net({28*28, 15, 10});
 
-  std::uniform_real_distribution<double> dis(0.0, 1.0);
+  std::ifstream file("mnist.csv");
 
-  std::function<double()> generator = [&](){return dis(gen);};
-
-  InputLayer<double, 2> inl;
-  InternalLayer<double, (activfn_t<double>)fns::ATan, (activfn_t<double>)fns::Deriv_ATan, 2, 2> l1(inl);
-  InternalLayer<double, (activfn_t<double>)fns::ATan, (activfn_t<double>)fns::Deriv_ATan, 1, 2> l2(l1);
+  std::vector<std::pair<Vector<double>, Vector<double>>> data;
   
-  l1.weights.fill(0);
-  l1.weights[0][0] = 1;
-  l1.weights[1][1] = 1;
-
-  // l1.GenBiases(generator);
-  l1.GenWeights(generator);
-  l1.GenBiases(generator);
-  l2.GenWeights(generator);
-  l2.GenBiases(generator);
-
-  l1.weights.print(std::cout);
-
-  // inl.set(vec_from<double, 8>({1, 1, 1, 1, 1, 1, 1, 1}));
-  std::vector<Layer<double>*> layers ({&inl, &l1, &l2});
-
-  // static constexpr uintmax_t nodes[] = {8, 4};
-  // static constexpr activfn_t<int> fns[] = {fns::ReLu};
-
-  Network<double, 3, 2, 1> net(inl, layers);
-
-  // try and get it to uhh
-  // classify a diagonal line ig
-  std::function<double(double, double)> truth = [&](double x, double y){
-    return x + y;
-  };
-  
-  
-  double running_acc = 0.5;
-  for (uintmax_t i = 1; true; i++) {
-    // train for 40, test for 10
-    for (uintmax_t train = 0; train < 40; train++) {
-      double v1 = generator();
-      double v2 = generator();
-      net.AccumulateBackprop(Vector<double, 2>({v1, v2}), Vector<double, 1>({truth(v1, v2)}));
+  // CSVRow row;
+  while (!file.eof()) {
+    std::vector<double> out;
+    std::vector<std::string> g = getNextLineAndSplitIntoTokens(file);
+    for (auto s : g) {
+      if (s == "") continue;
+      out.push_back(std::stoi(s));
     }
-    net.ApplyNudges(1, 40);
-    // test for 10
-    uintmax_t correct = 0;
-    for (uintmax_t i = 0; i < 10; i++) {
-      double v1 = generator();
-      double v2 = generator();
-      // 5% tolerance ig
-      if (std::abs((net.Run(Vector<double, 2>{v1, v2})[0] - truth(v1, v2))/truth(v1, v2)) < 0.05) correct++;
-      // if (std::round(net.Run(Vector<double, 2>{v1, v2})[0]) == truth(v1, v2)) correct++;
+    // std::cout << out.size() << '\n';
+    if (out.size() == 0) break;
+    Vector<double> key = OneHotEncode(out[0]);
+    // Vector<double> data_(24*24);
+    std::vector<double> data_;
+    if (out.size() != 28*28 + 1) std::cout << "not right size " << out.size() << '\n';
+    for (uintmax_t i = 1; i < out.size(); i++) {
+      data_.push_back(out[i]);
     }
-    running_acc = (running_acc * (i-1) + ((double)correct/10))/i;
-    std::cout << i*40 << " tests, currently at " << correct << "/10 accuracy with " << running_acc << " running\n";
-    l1.weights.print(std::cout);
-    l1.biases.print(std::cout);
-    l2.weights.print(std::cout);
-    l2.biases.print(std::cout);
-    std::cin.get();
+    data.push_back(std::make_pair(Vector<double>(data_), key));
   }
+  
+  std::cout << "beginning SGD\n";
+  net.StochGradDesc(data, 5, 1000, 2);
+  std::cout << "finished SDG\n";
 
+  
   // vec_from<int, 4>(l1.fwd()).print(std::cout);
   
   // net.test();

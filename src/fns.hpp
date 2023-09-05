@@ -1,28 +1,37 @@
 #ifndef FNS_HPP
 #define FNS_HPP
 
+#include "mtx.hpp"
 #include <algorithm>
 #include <cmath>
 namespace fns {
+
 template<typename T>
-T ReLu(T in) {
-  return std::max(in, 0.0);
+T Sigmoid(T in) {
+  return 1/(1 + std::exp(in));
 }
 template<typename T>
-T Deriv_ReLu(T in) {
-  return in > 0 ? 1 : 0;
+Vector<T> Sigmoid(Vector<T> in) {
+  Vector<T> out(in.height);
+  for (uintmax_t i = 0; i < in.height; i++) {
+    out[i] = Sigmoid(in[i]);
+  }
+
+  return out;
+}
+
+template<typename T>
+T SigmoidPrime(T in) {
+  return Sigmoid(in)/(1-Sigmoid(in));
 }
 template<typename T>
-T ATan(T in) {
-  return std::atan(in);
-}
-template<typename T>
-T Deriv_ATan(T in) {
-  return 1/(1 + in*in);
-}
-template<typename T>
-T Logistic(T in) {
-  return 1/(1 + std::exp(-in));
+Vector<T> SigmoidPrime(Vector<T> in) {
+  Vector<T> out(in.height);
+  for (uintmax_t i = 0; i < in.height; i++) {
+    out[i] = SigmoidPrime(in[i]);
+  }
+
+  return out;
 }
 }
 #endif // !FNS_HPP
