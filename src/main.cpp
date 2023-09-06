@@ -13,44 +13,14 @@
 #include <vector>
 #include <string>
 
-// https://stackoverflow.com/questions/1120140/how-can-i-read-and-parse-csv-files-in-c
-class CSVRow {
-public:
-  std::string_view operator[](std::size_t index) const {
-    return std::string_view(&m_line[m_data[index] + 1], m_data[index + 1] -  (m_data[index] + 1));
-  }
-  std::size_t size() const {
-    return m_data.size() - 1;
-  }
-  void readNextRow(std::istream& str) {
-    std::getline(str, m_line);
 
-    m_data.clear();
-    m_data.emplace_back(-1);
-    std::string::size_type pos = 0;
-    while((pos = m_line.find(',', pos)) != std::string::npos) {
-        m_data.emplace_back(pos);
-        ++pos;
-    }
-    // This checks for a trailing comma with no data after it.
-    pos   = m_line.size();
-    m_data.emplace_back(pos);
-  }
-private:
-  std::string         m_line;
-  std::vector<int>    m_data;
-};
+using T = float;
 
-std::istream& operator>>(std::istream& str, CSVRow& data) {
-  data.readNextRow(str);
-  return str;
-}
-
-Vector<double> OneHotEncode(uintmax_t Y) {
-  Vector<double> vec(10);
+Vector<T> OneHotEncode(uintmax_t Y) {
+  Vector<T> vec(10);
   vec.fill(0);
 
-  vec[Y] = 1.0;
+  vec.data[Y][0] = 1.0;
   return vec;
 }
 
@@ -85,17 +55,22 @@ std::vector<std::string> getNextLineAndSplitIntoTokens(std::istream& str) {
   return result;
 }
 
-int main() {
 
-  Network<double> net({28*28, 15, 10});
+int main() {
+  // mtx::tests::plus();
+  // exit(0);
+  // fns::tests::sigm();
+  // exit(0);
+
+  Network<T> net({28*28, 15, 10});
 
   std::ifstream file("mnist.csv");
 
-  std::vector<std::pair<Vector<double>, Vector<double>>> data;
+  std::vector<std::pair<Vector<T>, Vector<T>>> data;
   
   // CSVRow row;
   while (!file.eof()) {
-    std::vector<double> out;
+    std::vector<T> out;
     std::vector<std::string> g = getNextLineAndSplitIntoTokens(file);
     for (auto s : g) {
       if (s == "") continue;
@@ -103,18 +78,18 @@ int main() {
     }
     // std::cout << out.size() << '\n';
     if (out.size() == 0) break;
-    Vector<double> key = OneHotEncode(out[0]);
-    // Vector<double> data_(24*24);
-    std::vector<double> data_;
+    Vector<T> key = OneHotEncode(out[0]);
+    // Vector<T> data_(24*24);
+    std::vector<T> data_;
     if (out.size() != 28*28 + 1) std::cout << "not right size " << out.size() << '\n';
     for (uintmax_t i = 1; i < out.size(); i++) {
       data_.push_back(out[i]);
     }
-    data.push_back(std::make_pair(Vector<double>(data_), key));
+    data.push_back(std::make_pair(Vector<T>(data_), key));
   }
   
   std::cout << "beginning SGD\n";
-  net.StochGradDesc(data, 5, 100, 0);
+  net.StochGradDesc(data, 5, 1000, 300);
   std::cout << "finished SDG\n";
 
   
@@ -122,6 +97,6 @@ int main() {
   
   // net.test();
 
-  // net.Run(vec_from<double, 8>({1, 1, 1, 1, 1, 1, 1, 1})).print(std::cout);
+  // net.Run(vec_from<T, 8>({1, 1, 1, 1, 1, 1, 1, 1})).print(std::cout);
   return 0;
 }

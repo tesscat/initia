@@ -26,8 +26,8 @@ public:
     rng = std::mt19937_64();
     // chosen by dice roll, guaranteed to be random
     rng.seed(5);
-    std::uniform_real_distribution<double> dis(0.0, 1.0);
-    std::function<double(double)> generator = [&](double _){return dis(rng);};
+    std::uniform_real_distribution<T> dis(-1.0, 1.0);
+    std::function<T(T)> generator = [&](T _){return dis(rng);};
 
     for (uintmax_t i = 1; i < layersizes.size(); i++) {
       Matrix<T> mtx(layersizes[i], layersizes[i - 1]);
@@ -57,26 +57,30 @@ public:
       Vector<T> activation = inp;
 
       for (usize i = 0; i < weights.size(); i++) {
+        // weights[i].print(std::cout);
         Vector<T> z = weights[i] * activation + biases[i];
         activation = fns::Sigmoid(z);
       }
+
+      activation.print(std::cout);
 
       // error
       // assumes MNIST/classification, TODO: generalise
       uintmax_t max_acc_idx = 0;
       T max = -4000;
       for (uintmax_t j = 0; j < activation.height; j++) {
-        if (activation[j] > max) {
-          max = activation[j];
+        if (activation.data[j][0] > max) {
+          max = activation.data[j][0];
           max_acc_idx = j;
         }
       }
+      std::cout << "MAI" << max_acc_idx << '\n';
 
       uintmax_t max_exp_idx = 0;
       max = -4000;
       for (uintmax_t j = 0; j < activation.height; j++) {
-        if (training_data[i].second[j] > max) {
-          max = training_data[i].second[j];
+        if (training_data[i].second.data[j][0] > max) {
+          max = training_data[i].second.data[j][0];
           max_acc_idx = j;
         }
       }
@@ -91,11 +95,27 @@ public:
 
   void StochGradDesc(std::vector<std::pair<Vector<T>, Vector<T>>>& training_data, usize epochs, usize mini_batch_size, T learning_rate) {
     for (usize i = 0; i < epochs; i++) {
+      Matrix<T> wb = weights[0] * (-1.0);
       // TODO: shuffle data
+      std::shuffle(training_data.begin(), training_data.end(), rng);
       for (usize batch = 0; batch < training_data.size()/mini_batch_size; batch++) {
+        // std::vector<std::pair<Vector<T>, Vector<T>>> minibatches = 
         UpdateMiniBatch(training_data, mini_batch_size, batch, learning_rate);
       }
-      std::shuffle(training_data.begin(), training_data.end(), rng);
+      // std::cout << "dumping params\n";
+      // for(auto w : weights) {
+        // std::cout << w.height << ' ' << w.width << '\n';
+        // w.print(std::cout);
+        // std::cout << '\n';
+      // }
+      // std::cout << "biases\n";
+      // for(auto b : biases) {
+        // std::cout << b.height << ' ' << b.width << '\n';
+        // b.print(std::cout);
+        // std::cout << '\n';
+      // }
+      Matrix<T> wa = weights[0] + wb;
+      // wa.print(std::cout);
       std::cout << "Epoch run, accuracy is " << Test(training_data, 50) << std::endl;
     }
   }
@@ -106,7 +126,7 @@ public:
   Vector<T> Cost(Vector<T> acc, Vector<T> exp) {
     Vector<T> out (acc.height);
     for (uintmax_t i = 0; i < acc.height; i++) {
-      out[i] = Cost(acc[i], exp[i]);
+      out.data[i][0] = Cost(acc.data[i][0], exp.data[i][0]);
     }
 
     return out;
@@ -118,7 +138,7 @@ public:
   Vector<T> CostDeriv(Vector<T> acc, Vector<T> exp) {
     Vector<T> out (acc.height);
     for (uintmax_t i = 0; i < acc.height; i++) {
-      out[i] = CostDeriv(acc[i], exp[i]);
+      out.data[i][0] = CostDeriv(acc.data[i][0], exp.data[i][0]);
     }
 
     return out;
@@ -140,8 +160,21 @@ public:
       }
     }
     for (usize i = 0; i < d_cost_wrt_bias.size(); i++) {
-      T rate = ((-1) * (learning_rate/mini_batch_size));
-      std::cout << "rate: " << rate << '\n';
+      T rate = ((-1.0) * ((T)learning_rate/(T)mini_batch_size));
+      // T sum = 0;
+      // std::function<T(T)> fn = [&](T i) {
+        // sum += i;
+        // return i;
+      // };
+      // std::cout << "dcostwrtweight\n";
+      // d_cost_wrt_weight[i].print(std::cout);
+      // d_cost_wrt_weight[i].foreach(fn);
+      // std::cout << "promise " << sum << '\n';
+      // sum = 0;
+      // d_cost_wrt_bias[i].foreach(fn);
+      // std::cout << "bias " << sum << '\n';
+      // std::cout << rate << '\n';
+      // std::cout << "rate: " << rate << '\n';
       weights[i] += d_cost_wrt_weight[i] * rate;
       biases[i] += d_cost_wrt_bias[i] * rate;
     }
@@ -151,29 +184,39 @@ public:
   std::pair<std::vector<Matrix<T>>, std::vector<Vector<T>>> Backprop(Vector<T> inp, Vector<T> expected) {
     // std::cout << "inp shape " << inp.height << ' ' << inp.width << '\n';
     // TODO: make it do all the inps/exps in a batch simultaneously
+    std::function<T(T)> fn = [](T _) {return 10.0;};
     std::vector<Vector<T>> nabla_bias;
     std::vector<Matrix<T>> nabla_weight;
     for (usize i = 0; i < weights.size(); i++) {
       nabla_bias.push_back(Vector<T>(biases[i].height));
+      // nabla_bias[i].foreach(fn);
       nabla_weight.push_back(Matrix<T>(weights[i].height, weights[i].width));
+      // nabla_weight[i].foreach(fn);
     }
+    // return std::make_pair(nabla_weight, nabla_bias);
 
     // feed-forward
     std::vector<Vector<T>> activations {};
     Vector<T> activation = inp;
     activations.push_back(activation);
+    // activations.end()[-1].print(std::cout);
 
     std::vector<Vector<T>> weighted_inps {};
     for (usize i = 0; i < weights.size(); i++) {
+      // weights[i].print(std::cout);
       Vector<T> z = weights[i] * activation + biases[i];
       // std::cout << "z shape " << z.height << ' ' << z.width << '\n';
+      // z.print(std::cout);
       weighted_inps.push_back(z);
       activation = fns::Sigmoid(z);
+      // activation.print(std::cout);
+      // std::cin.get();
       activations.push_back(activation);
     }
 
     // backwards pass
-    Vector<T> delta = CostDeriv(activations.end()[-1], expected).Hadamond(fns::SigmoidPrime(weighted_inps.end()[-1]));
+    Vector<T> delta = CostDeriv(activations.end()[-1], expected);
+    delta = delta.Hadamond(fns::SigmoidPrime(weighted_inps.end()[-1]));
     nabla_bias.end()[-1] = delta;
     nabla_weight.end()[-1] = delta * (activations.end()[-2].Transpose());
 
@@ -181,11 +224,16 @@ public:
       Vector<T> z = weighted_inps.end()[-l];
       Vector<T> sp = fns::SigmoidPrime(z);
       // delta is of next layer atm
-      delta = (weights.end()[-l+1].Transpose()*delta).AsVec().Hadamond(sp);
+      delta = ((weights.end()[-l+1].Transpose())*delta).AsVec().Hadamond(sp);
+      // delta.print(std::cout);
       nabla_bias.end()[-l] = delta;
       nabla_weight.end()[-l] = delta * (activations.end()[-l-1].Transpose());
     }
-
+    // std::cout << "nabla weight 0\n";
+    // for(int i = 0; i<nabla_weight.size(); i++) {
+      // nabla_weight[i].print(std::cout);
+      // nabla_bias[i].print(std::cout);
+    // }
     return std::make_pair(nabla_weight, nabla_bias);
   }
 

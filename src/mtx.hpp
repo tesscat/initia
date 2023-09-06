@@ -35,14 +35,14 @@ public:
   }
 
   Matrix(const Matrix<T>* m) : height(m->height), width(m->width) {
-    data = m->data;
+    data = (m->data);
   }
 
   Matrix<T> Transpose() {
-    Matrix out(width, height);
+    Matrix<T> out(width, height);
     for (uintmax_t y = 0; y < height; y++) {
       for (uintmax_t x = 0; x < width; x++) {
-        out[x][y] = data[y][x];
+        out.data[x][y] = data[y][x];
       }
     }
 
@@ -77,15 +77,15 @@ public:
   }
 
   Matrix<T>* operator=(const Matrix<T> other) {
-    data = other.data;
+    data = (other.data);
     width = other.width;
     height = other.height;
 
     return this;
   }
 
-  std::vector<T> operator[](const uintmax_t y) {return data[y];}
-  virtual const std::vector<T> operator[](const uintmax_t y) const {return data[y];}
+  // std::vector<T> operator[](const uintmax_t y) {return data[y];}
+  // virtual const std::vector<T> operator[](const uintmax_t y) const {return data[y];}
 
   void operator +=(const Matrix<T>& other) {
     if (width != other.width || height != other.height)
@@ -105,7 +105,9 @@ public:
   void operator *=(const T val) {
     for (uintmax_t y = 0; y < height; y++) {
       for (uintmax_t x = 0; x < width; x++) {
-        data[y][x] *= val;
+        // hack to stop nans from spreading
+        // TODO: remove
+        data[y][x] = (val == 0? 0 : val*data[y][x]);
       }
     }
   }
@@ -180,10 +182,6 @@ public:
     }
   }
 
-  T& operator [](uintmax_t idx) {
-    return this->data[idx][0];
-  }
-
   Vector(std::initializer_list<T> q) : Matrix<T>(q.size(), 1) {
     uintmax_t i = 0;
     for (auto k : q) {
@@ -194,7 +192,7 @@ public:
   Vector<T> Hadamond(Vector<T> other) {
     Vector<T> out (other.height);
     for (uintmax_t i = 0; i < other.height; i++) {
-      out[i] = this->data[i][0] * other.data[i][0];
+      out.data[i][0] = this->data[i][0] * other.data[i][0];
     }
 
     return out;
@@ -207,11 +205,6 @@ public:
 
     return this;
   }
-  // std::vector<T> flatten() {
-  //   std::vector<T> v;
-  //   v.insert(v.begin(), std::begin(this->data[0]), std::end(this->data[0]));
-  //   return v;
-  // }
 };
 
 template<typename T>
@@ -220,6 +213,67 @@ void print_vec(std::vector<T> vec, std::ostream& os) {
     os << k << '\n';
   }
 }
+
+#include<random>
+namespace mtx::tests {
+void hadamond() {
+  std::mt19937_64 rng = std::mt19937_64();
+  std::vector<double> v;
+  for (int i = 0; i < 10; i++)
+    v.push_back((double)(rng()/(rng.max()/10)));
+  Vector<double> v1(v);
+  for (int i = 0; i < 10; i++)
+    v[i] = ((double)(rng()/(rng.max()/10)));
+  Vector<double> v2(v);
+  v1.print(std::cout);
+  std::cout << "hadamond\n";
+  v2.print(std::cout);
+  std::cout << "=\n";
+  (v1.Hadamond(v2)).print(std::cout);
+}
+void multi() {
+  std::mt19937_64 rng = std::mt19937_64();
+  std::function<double(double)> r = [&](double b) {
+    return (double)(rng()/(rng.max()/10));
+  };
+  Matrix<double> m1 (2, 6);
+  Matrix<double> m2 (6, 4);
+  m1.foreach(r);
+  m2.foreach(r);
+  m1.print(std::cout);
+  std::cout << "*\n";
+  m2.print(std::cout);
+  std::cout << "=\n";
+  (m1*m2).print(std::cout);
+}
+void plus() {
+  std::mt19937_64 rng = std::mt19937_64();
+  std::function<double(double)> r = [&](double b) {
+    return (double)(rng()/(rng.max()/10));
+  };
+  Matrix<double> m1 (2, 6);
+  Matrix<double> m2 (2, 6);
+  m1.foreach(r);
+  m2.foreach(r);
+  m1.print(std::cout);
+  std::cout << "+\n";
+  m2.print(std::cout);
+  std::cout << "=\n";
+  m1 += m2;
+  (m1).print(std::cout);
+}
+void trans() {
+  std::mt19937_64 rng = std::mt19937_64();
+  std::function<double(double)> r = [&](double b) {
+    return (double)(rng()/(rng.max()/10));
+  };
+  Matrix<double> m1 (2, 6);
+  m1.foreach(r);
+  m1.print(std::cout);
+  std::cout << "T=\n";
+  (m1.Transpose()).print(std::cout);
+}
+};
 
 // template<typename T, const uintmax_t H>
 // class Vector : Matrix<T, 1, H> {
