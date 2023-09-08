@@ -36,3 +36,5 @@
 .cache/
 .cache
 **/.cache
+
+*.csv
