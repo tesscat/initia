@@ -1,11 +1,14 @@
 #include <fstream>
 
-
-#include <Eigen/Eigen>
-#include "fns.hpp"
+#include "hipSYCL/sycl/device_selector.hpp"
 #include "net.hpp"
 
-using Scalar = double;
+#include <Eigen/Eigen>
+#include <CL/sycl.hpp>
+
+#include "fns.hpp"
+
+using Scalar = float;
 using Vector = Network<Scalar>::Vector;
 using Matrix = Network<Scalar>::Matrix;
 using Operator = Network<Scalar>::Operator;
@@ -97,10 +100,33 @@ int main() {
     }
     test_data.push_back(std::make_pair(v, key));
   }
+
+  // init SYCL
+  cl::sycl::context ctx;
+  std::cout << "Available devices:\n";
+  for (auto dev : ctx.get_devices()) {
+    std::cout << '\t' << dev.get_info<cl::sycl::info::device::name>() << '\n';
+  }
   
-  Network<Scalar> net(std::vector<uint>({28*28, 15, 10}), 8, (Operator)Sigmoid<Scalar>, (Operator)SigmoidDeriv<Scalar>);
+  cl::sycl::queue queue;
+  if (ctx.get_devices()[0].get_info<cl::sycl::info::device::name>().starts_with("cpu-")) {
+    queue = cl::sycl::queue(ctx.get_devices().back());
+  } else {
+    cl::sycl::default_selector device_selector;
+    queue = cl::sycl::queue(device_selector);
+  }
+
+  // cl::sycl::aspect_selector()
+
+  // cl::sycl::queue queue(device_selector);
+
+  std::cout << "Running on "
+             << queue.get_device().get_info<cl::sycl::info::device::name>()
+             << "\n";
+  
+  Network<Scalar> net(std::vector<uint>({28*28, 15, 10}), 4, (Operator)Sigmoid<Scalar>, (Operator)SigmoidDeriv<Scalar>);
   std::cout << "beginning SGD\n";
-  net.SGD(test_data, 10000, 10, std::optional(test_data));
+  net.SGD(test_data, 10000, 40, queue, std::optional(test_data));
   std::cout << "finished SDG\n";
 
   return 0;

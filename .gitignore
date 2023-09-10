@@ -36,5 +36,7 @@
 .cache/
 .cache
 **/.cache
+build
 
 *.csv
+*.json
